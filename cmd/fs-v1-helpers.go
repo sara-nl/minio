@@ -151,7 +151,7 @@ func fsStat(statLoc string) (os.FileInfo, error) {
 	if err := checkPathLength(statLoc); err != nil {
 		return nil, traceError(err)
 	}
-	fi, err := os.Stat((statLoc))
+	fi, err := os.Lstat(statLoc)
 	if err != nil {
 		return nil, traceError(err)
 	}
@@ -221,7 +221,7 @@ func fsStatFile(statFile string) (os.FileInfo, error) {
 	if err != nil {
 		return nil, osErrToFSFileErr(err)
 	}
-	if fi.IsDir() {
+	if !fi.Mode().IsRegular() {
 		return nil, traceError(errFileAccessDenied)
 	}
 	return fi, nil
