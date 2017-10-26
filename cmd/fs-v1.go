@@ -53,6 +53,20 @@ type fsObjects struct {
 	bgAppend *backgroundAppend
 }
 
+func fileAccess(fspath, bucket, prefix string) bool {
+	// returns true if access seems OK
+	// This function only checks paths and resolved symbolic links
+	// and assumes that fspath is an already resolved abspath
+
+	serverroot := fspath + slashSeparator
+	filename := pathJoin(fspath, bucket, prefix)
+	realpath, err := filepath.EvalSymlinks(filename)
+	if err != nil {
+		return false
+	}
+	return hasPrefix(realpath, serverroot)
+}
+
 // Initializes meta volume on all the fs path.
 func initMetaVolumeFS(fsPath, fsUUID string) error {
 	// This happens for the first time, but keep this here since this
@@ -81,27 +95,29 @@ func newFSObjectLayer(fsPath string) (ObjectLayer, error) {
 	}
 
 	var err error
+
+	// get the real path; resolve any symbolic links
+	fsPath, err = filepath.EvalSymlinks(fsPath)
+	if err != nil {
+		return nil, err
+	}
+
 	// Disallow relative paths, figure out absolute paths.
 	fsPath, err = filepath.Abs(fsPath)
 	if err != nil {
 		return nil, err
 	}
 
-	fi, err := os.Stat((fsPath))
-	if err == nil {
-		if !fi.IsDir() {
-			return nil, syscall.ENOTDIR
-		}
-	}
-	if os.IsNotExist(err) {
-		// Disk not found create it.
-		err = os.MkdirAll(fsPath, 0777)
-		if err != nil {
-			return nil, err
-		}
+	fi, err := os.Stat(fsPath)
+	if err != nil {
+		return nil, err
 	}
 
-	di, err := getDiskInfo((fsPath))
+	if !fi.IsDir() {
+		return nil, syscall.ENOTDIR
+	}
+
+	di, err := getDiskInfo(fsPath)
 	if err != nil {
 		return nil, err
 	}
@@ -245,7 +261,7 @@ func (fs fsObjects) ListBuckets() ([]BucketInfo, error) {
 		return nil, traceError(err)
 	}
 	var bucketInfos []BucketInfo
-	entries, err := readDir((fs.fsPath))
+	entries, err := readDir(fs.fsPath)
 	if err != nil {
 		return nil, toObjectErr(traceError(errDiskNotFound))
 	}
@@ -482,6 +498,10 @@ func (fs fsObjects) getObjectInfo(bucket, object string) (oi ObjectInfo, e error
 	// Ignore if `fs.json` is not available, this is true for pre-existing data.
 	if err != nil && err != errFileNotFound {
 		return oi, toObjectErr(traceError(err), bucket, object)
+	}
+
+	if !fileAccess(fs.fsPath, bucket, object) {
+		return oi, toObjectErr(errFileAccessDenied, bucket, object)
 	}
 
 	// Stat the file to get file size.
@@ -785,6 +805,10 @@ func (fs fsObjects) getObjectETag(bucket, entry string) (string, error) {
 // ListObjects - list all objects at prefix upto maxKeys., optionally delimited by '/'. Maintains the list pool
 // state for future re-entrant list requests.
 func (fs fsObjects) ListObjects(bucket, prefix, marker, delimiter string, maxKeys int) (loi ListObjectsInfo, e error) {
+	if !fileAccess(fs.fsPath, bucket, prefix) {
+		return loi, toObjectErr(errFileAccessDenied, bucket, prefix)
+	}
+
 	if err := checkListObjsArgs(bucket, prefix, marker, delimiter, fs); err != nil {
 		return loi, err
 	}
@@ -826,7 +850,13 @@ func (fs fsObjects) ListObjects(bucket, prefix, marker, delimiter string, maxKey
 			return ObjectInfo{}, err
 		}
 
+		// check path for access outside serverroot
+		if !fileAccess(fs.fsPath, bucket, entry) {
+			return ObjectInfo{}, errFileAccessDenied
+		}
+
 		if hasSuffix(entry, slashSeparator) {
+			// it's a directory
 			var fi os.FileInfo
 			fi, err = fsStatDir(pathJoin(fs.fsPath, bucket, entry))
 			objectLock.RUnlock()
@@ -834,8 +864,8 @@ func (fs fsObjects) ListObjects(bucket, prefix, marker, delimiter string, maxKey
 				return objInfo, err
 			}
 			// Success.
+			// return directory object
 			return ObjectInfo{
-				// Object name needs to be full path.
 				Name:    entry,
 				Bucket:  bucket,
 				Size:    fi.Size(),
@@ -844,6 +874,7 @@ func (fs fsObjects) ListObjects(bucket, prefix, marker, delimiter string, maxKey
 			}, nil
 		}
 
+		// it must be a file
 		var etag string
 		etag, err = fs.getObjectETag(bucket, entry)
 		objectLock.RUnlock()
@@ -859,6 +890,7 @@ func (fs fsObjects) ListObjects(bucket, prefix, marker, delimiter string, maxKey
 		}
 
 		// Success.
+		// return a file object
 		return ObjectInfo{
 			Name:    entry,
 			Bucket:  bucket,
@@ -906,7 +938,7 @@ func (fs fsObjects) ListObjects(bucket, prefix, marker, delimiter string, maxKey
 		objInfo, err := entryToObjectInfo(walkResult.entry)
 		if err != nil {
 			errorIf(err, "Unable to fetch object info for %s", walkResult.entry)
-			return loi, nil
+			return loi, toObjectErr(err, bucket, prefix)
 		}
 		nextMarker = objInfo.Name
 		objInfos = append(objInfos, objInfo)
