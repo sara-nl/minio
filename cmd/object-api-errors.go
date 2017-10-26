@@ -43,6 +43,10 @@ func toObjectErr(err error, params ...string) error {
 		if len(params) >= 1 {
 			err = BucketExists{Bucket: params[0]}
 		}
+	case errVolumeAccessDenied:
+		if len(params) >= 1 {
+			err = BucketAccessDenied{Bucket: params[0]}
+		}
 	case errDiskFull:
 		err = StorageFull{}
 	case errFileAccessDenied:
@@ -142,11 +146,18 @@ func (e BucketNotFound) Error() string {
 	return "Bucket not found: " + e.Bucket
 }
 
+// BucketAccessDenied bucket does not exist.
+type BucketAccessDenied GenericError
+
+func (e BucketAccessDenied) Error() string {
+	return "Bucket access denied: " + e.Bucket
+}
+
 // BucketAlreadyExists the requested bucket name is not available.
 type BucketAlreadyExists GenericError
 
 func (e BucketAlreadyExists) Error() string {
-	return "The requested bucket name is not available. The bucket namespace is shared by all users of the system. Please select a different name and try again."
+	return "Bucket already exists: " + e.Bucket
 }
 
 // BucketAlreadyOwnedByYou already owned by you.

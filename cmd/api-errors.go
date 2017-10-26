@@ -365,7 +365,7 @@ var errorCodeResponse = map[APIErrorCode]APIError{
 	},
 	ErrBucketAlreadyExists: {
 		Code:           "BucketAlreadyExists",
-		Description:    "The requested bucket name is not available. The bucket namespace is shared by all users of the system. Please select a different name and try again.",
+		Description:    "Bucket already exists",
 		HTTPStatusCode: http.StatusConflict,
 	},
 	ErrAllAccessDisabled: {
@@ -715,6 +715,8 @@ func toAPIErrorCode(err error) (apiErr APIErrorCode) {
 		apiErr = ErrInvalidBucketName
 	case BucketNotFound:
 		apiErr = ErrNoSuchBucket
+	case BucketAccessDenied:
+		apiErr = ErrAccessDenied
 	case BucketAlreadyOwnedByYou:
 		apiErr = ErrBucketAlreadyOwnedByYou
 	case BucketNotEmpty:
