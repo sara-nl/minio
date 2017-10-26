@@ -225,7 +225,7 @@ func (fs fsObjects) statBucketDir(bucket string) (os.FileInfo, error) {
 	return st, nil
 }
 
-// MakeBucket - create a new bucket, returns if it
+// MakeBucket - create a new bucket, returns error if it
 // already exists.
 func (fs fsObjects) MakeBucketWithLocation(bucket, location string) error {
 	bucketDir, err := fs.getBucketDir(bucket)
@@ -299,6 +299,11 @@ func (fs fsObjects) ListBuckets() ([]BucketInfo, error) {
 // with the bucket including pending multipart, object metadata.
 func (fs fsObjects) DeleteBucket(bucket string) error {
 	bucketDir, err := fs.getBucketDir(bucket)
+	if err != nil {
+		return toObjectErr(err, bucket)
+	}
+
+	_, err = fsStatVolume(bucketDir)
 	if err != nil {
 		return toObjectErr(err, bucket)
 	}
