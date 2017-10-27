@@ -581,7 +581,7 @@ func (l *gcsGateway) ListObjects(bucket string, prefix string, marker string, de
 			Bucket:          attrs.Bucket,
 			ModTime:         attrs.Updated,
 			Size:            attrs.Size,
-			ETag:            fmt.Sprintf("%d", attrs.CRC32C),
+			ETag:            toS3ETag(fmt.Sprintf("%d", attrs.CRC32C)),
 			UserDefined:     attrs.Metadata,
 			ContentType:     attrs.ContentType,
 			ContentEncoding: attrs.ContentEncoding,
@@ -723,7 +723,7 @@ func fromGCSAttrsToObjectInfo(attrs *storage.ObjectAttrs) ObjectInfo {
 		Bucket:          attrs.Bucket,
 		ModTime:         attrs.Updated,
 		Size:            attrs.Size,
-		ETag:            fmt.Sprintf("%d", attrs.CRC32C),
+		ETag:            toS3ETag(fmt.Sprintf("%d", attrs.CRC32C)),
 		UserDefined:     attrs.Metadata,
 		ContentType:     attrs.ContentType,
 		ContentEncoding: attrs.ContentEncoding,
@@ -858,7 +858,7 @@ func (l *gcsGateway) PutObjectPart(bucket string, key string, uploadID string, p
 	etag := data.MD5HexString()
 	if etag == "" {
 		// Generate random ETag.
-		etag = getMD5Hash([]byte(mustGetUUID()))
+		etag = genETag()
 	}
 	object := l.client.Bucket(bucket).Object(gcsMultipartDataName(uploadID, partNumber, etag))
 	w := object.NewWriter(l.ctx)
@@ -1060,7 +1060,6 @@ func (l *gcsGateway) GetBucketPolicies(bucket string) (policy.BucketAccessPolicy
 	if err != nil {
 		return policy.BucketAccessPolicy{}, gcsToObjectError(traceError(err), bucket)
 	}
-
 	policyInfo := policy.BucketAccessPolicy{Version: "2012-10-17"}
 	for _, r := range rules {
 		if r.Entity != storage.AllUsers || r.Role == storage.RoleOwner {
@@ -1073,7 +1072,10 @@ func (l *gcsGateway) GetBucketPolicies(bucket string) (policy.BucketAccessPolicy
 			policyInfo.Statements = policy.SetPolicy(policyInfo.Statements, policy.BucketPolicyWriteOnly, bucket, "")
 		}
 	}
-
+	// Return NoSuchBucketPolicy error, when policy is not set
+	if len(policyInfo.Statements) == 0 {
+		return policy.BucketAccessPolicy{}, gcsToObjectError(traceError(PolicyNotFound{}), bucket)
+	}
 	return policyInfo, nil
 }
 
