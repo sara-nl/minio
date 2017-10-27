@@ -65,7 +65,6 @@ func (e Error) Trace() []string {
 	return traceArr
 }
 
-// NewStorageError - return new Error type.
 func traceError(e error, errs ...error) error {
 	if e == nil {
 		return nil
@@ -152,7 +151,7 @@ func isErr(err error, errs ...error) bool {
 	return false
 }
 
-// traceErrorf behaves like fmt.traceErrorf but also traces the returned error.
+// traceErrorf behaves like fmt.Errorf but also traces the returned error.
 func traceErrorf(format string, args ...interface{}) error {
 	return traceError(fmt.Errorf(format, args...))
 }
