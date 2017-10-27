@@ -18,10 +18,12 @@ package cmd
 
 import (
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
+	"os/user"
 	"path"
 	"path/filepath"
 	"sort"
@@ -115,6 +117,22 @@ func newFSObjectLayer(fsPath string) (ObjectLayer, error) {
 
 	if !fi.IsDir() {
 		return nil, syscall.ENOTDIR
+	}
+
+	// check that the path is below the user's homedir
+	u, err := user.Current()
+	if err != nil {
+		return nil, err
+	}
+	// if not the root user
+	if u.Uid != "0" {
+		homedir, err := filepath.EvalSymlinks(u.HomeDir)
+		if err != nil {
+			return nil, err
+		}
+		if !hasPrefix(fsPath+slashSeparator, homedir+slashSeparator) {
+			return nil, errors.New(fmt.Sprintf("served path:%s is not under homedir:%s", fsPath, homedir))
+		}
 	}
 
 	di, err := getDiskInfo(fsPath)
