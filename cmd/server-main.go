@@ -113,13 +113,6 @@ func serverHandleCmdArgs(ctx *cli.Context) {
 func serverHandleEnvVars() {
 	// Handle common environment variables.
 	handleCommonEnvVars()
-
-	if serverRegion := os.Getenv("MINIO_REGION"); serverRegion != "" {
-		// region Envs are set globally.
-		globalIsEnvRegion = true
-		globalServerRegion = serverRegion
-	}
-
 }
 
 // serverMain handler called for 'minio server' command.

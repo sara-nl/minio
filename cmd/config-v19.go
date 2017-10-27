@@ -20,6 +20,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"os"
 	"sync"
 
 	"github.com/minio/minio/pkg/quick"
@@ -169,19 +170,6 @@ func newConfig() error {
 	// Initialize server config.
 	srvCfg := newServerConfigV19()
 
-	// If env is set override the credentials from config file.
-	if globalIsEnvCreds {
-		srvCfg.SetCredential(globalActiveCred)
-	}
-
-	if globalIsEnvBrowser {
-		srvCfg.SetBrowser(globalIsBrowserEnabled)
-	}
-
-	if globalIsEnvRegion {
-		srvCfg.SetRegion(globalServerRegion)
-	}
-
 	// hold the mutex lock before a new config is assigned.
 	// Save the new config globally.
 	// unlock the mutex.
@@ -269,14 +257,6 @@ func getValidConfig() (*serverConfigV19, error) {
 		return nil, err
 	}
 
-	// Validate credential fields only when
-	// they are not set via the environment
-
-	// Error out if global is env credential is not set and config has invalid credential
-	if !globalIsEnvCreds && !srvCfg.Credential.IsValid() {
-		return nil, errors.New("invalid credential in config file " + configFile)
-	}
-
 	// Validate logger field
 	if err = srvCfg.Logger.Validate(); err != nil {
 		return nil, err
@@ -290,7 +270,7 @@ func getValidConfig() (*serverConfigV19, error) {
 	return srvCfg, nil
 }
 
-// loadConfig - loads a new config from disk, overrides params from env
+// loadConfig - loads a config from disk, overrides params from env
 // if found and valid
 func loadConfig() error {
 	srvCfg, err := getValidConfig()
@@ -298,31 +278,55 @@ func loadConfig() error {
 		return err
 	}
 
-	// If env is set override the credentials from config file.
-	if globalIsEnvCreds {
-		srvCfg.SetCredential(globalActiveCred)
+	// credential override via environment vars
+	creds := &srvCfg.Credential
+
+	env_accesskey := os.Getenv("MINIO_ACCESS_KEY")
+	if env_accesskey != "" {
+		globalIsEnvCreds = true
+		creds.AccessKey = env_accesskey
 	}
 
-	if globalIsEnvBrowser {
-		srvCfg.SetBrowser(globalIsBrowserEnabled)
+	env_secret := os.Getenv("MINIO_SECRET_KEY")
+	if env_secret != "" {
+		globalIsEnvCreds = true
+		creds.SecretKey = env_secret
 	}
 
-	if globalIsEnvRegion {
-		srvCfg.SetRegion(globalServerRegion)
+	if !creds.IsValid() {
+		if globalIsEnvCreds {
+			return errors.New("invalid credentials in config and/or MINIO_xxx environment settings")
+		}
+		return errors.New("invalid credentials in config file")
+	}
+
+	enable_browser := os.Getenv("MINIO_BROWSER")
+	if enable_browser != "" {
+		globalIsEnvBrowser = true
+		if enable_browser == "yes" || enable_browser == "on" {
+			globalIsBrowserEnabled = true
+		} else if enable_browser == "no" || enable_browser == "off" {
+			globalIsBrowserEnabled = false
+		} else {
+			return errors.New("invalid setting in environment var MINIO_BROWSER")
+		}
+	}
+	srvCfg.SetBrowser(globalIsBrowserEnabled)
+
+	region := os.Getenv("MINIO_REGION")
+	if region != "" {
+		globalIsEnvRegion = true
+		srvCfg.SetRegion(region)
 	}
 
 	// hold the mutex lock before a new config is assigned.
 	serverConfigMu.Lock()
 	serverConfig = srvCfg
-	if !globalIsEnvCreds {
-		globalActiveCred = serverConfig.GetCredential()
-	}
-	if !globalIsEnvBrowser {
-		globalIsBrowserEnabled = serverConfig.GetBrowser()
-	}
-	if !globalIsEnvRegion {
-		globalServerRegion = serverConfig.GetRegion()
-	}
+
+	globalActiveCred = serverConfig.GetCredential()
+	globalIsBrowserEnabled = serverConfig.GetBrowser()
+	globalServerRegion = serverConfig.GetRegion()
+
 	serverConfigMu.Unlock()
 
 	return nil
