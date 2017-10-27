@@ -193,8 +193,11 @@ func newConfig() error {
 	return serverConfig.Save()
 }
 
-// doCheckDupJSONKeys recursively detects duplicate json keys
-func doCheckDupJSONKeys(key, value gjson.Result) error {
+// Check recursively if a key is duplicated in the same json scope
+// e.g.:
+//  `{ "key" : { "key" ..` is accepted
+//  `{ "key" : { "subkey" : "val1", "subkey": "val2" ..` throws subkey duplicated error
+func checkDupJSONKeys(key, value gjson.Result) error {
 	// Key occurrences map of the current scope to count
 	// if there is any duplicated json key.
 	keysOcc := make(map[string]int)
@@ -208,7 +211,7 @@ func doCheckDupJSONKeys(key, value gjson.Result) error {
 		// value contains some duplicated keys.
 		if k.Type != gjson.Null {
 			keysOcc[k.String()]++
-			checkErr = doCheckDupJSONKeys(k, v)
+			checkErr = checkDupJSONKeys(k, v)
 		}
 		return checkErr == nil
 	})
@@ -228,11 +231,8 @@ func doCheckDupJSONKeys(key, value gjson.Result) error {
 	return nil
 }
 
-// Check recursively if a key is duplicated in the same json scope
-// e.g.:
-//  `{ "key" : { "key" ..` is accepted
-//  `{ "key" : { "subkey" : "val1", "subkey": "val2" ..` throws subkey duplicated error
-func checkDupJSONKeys(json string) error {
+// parse JSON
+func parseJSON(json string) error {
 	// Parse config with gjson library
 	config := gjson.Parse(json)
 
@@ -241,7 +241,7 @@ func checkDupJSONKeys(json string) error {
 	rootKey := gjson.Result{Type: gjson.String, Str: minioConfigFile}
 
 	// Check if loaded json contains any duplicated keys
-	return doCheckDupJSONKeys(rootKey, config)
+	return checkDupJSONKeys(rootKey, config)
 }
 
 // getValidConfig - returns valid server configuration
@@ -265,7 +265,7 @@ func getValidConfig() (*serverConfigV19, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err = checkDupJSONKeys(string(jsonBytes)); err != nil {
+	if err = parseJSON(string(jsonBytes)); err != nil {
 		return nil, err
 	}
 
