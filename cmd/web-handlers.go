@@ -728,20 +728,10 @@ func readBucketAccessPolicy(objAPI ObjectLayer, bucketName string) (policy.Bucke
 
 func getBucketAccessPolicy(objAPI ObjectLayer, bucketName string) (policy.BucketAccessPolicy, error) {
 	// FIXME: remove this code when S3 layer for gateway and server is unified.
-	var policyInfo policy.BucketAccessPolicy
-	var err error
-
-	switch layer := objAPI.(type) {
-	case *s3Objects:
-		policyInfo, err = layer.GetBucketPolicies(bucketName)
-	case *azureObjects:
-		policyInfo, err = layer.GetBucketPolicies(bucketName)
-	case *gcsGateway:
-		policyInfo, err = layer.GetBucketPolicies(bucketName)
-	default:
-		policyInfo, err = readBucketAccessPolicy(objAPI, bucketName)
+	if layer, ok := objAPI.(GatewayLayer); ok {
+		return layer.GetBucketPolicies(bucketName)
 	}
-	return policyInfo, err
+	return readBucketAccessPolicy(objAPI, bucketName)
 }
 
 // GetBucketPolicy - get bucket policy for the requested prefix.
@@ -867,12 +857,14 @@ func (web *webAPIHandlers) SetBucketPolicy(r *http.Request, args *SetBucketPolic
 	}
 
 	if len(policyInfo.Statements) == 0 {
-		err = persistAndNotifyBucketPolicyChange(args.BucketName, policyChange{true, nil}, objectAPI)
-		if err != nil {
+		if err = persistAndNotifyBucketPolicyChange(args.BucketName, policyChange{
+			true, policy.BucketAccessPolicy{},
+		}, objectAPI); err != nil {
 			return toJSONError(err, args.BucketName)
 		}
 		return nil
 	}
+
 	data, err := json.Marshal(policyInfo)
 	if err != nil {
 		return toJSONError(err)
