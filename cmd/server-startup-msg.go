@@ -54,15 +54,6 @@ func printStartupMessage(apiEndPoints []string) {
 	// first endpoint as default.
 	printCLIAccessMsg(strippedAPIEndpoints[0], "myminio")
 
-	// Prints documentation message.
-	printObjectAPIMsg()
-
-	// Object layer is initialized then print StorageInfo.
-	objAPI := newObjectLayerFn()
-	if objAPI != nil {
-		printStorageInfo(objAPI.StorageInfo())
-	}
-
 	// SSL is configured reads certification chain, prints
 	// authority and expiry.
 	if globalIsSSL {

@@ -150,17 +150,6 @@ func serverMain(ctx *cli.Context) {
 	globalPublicCerts, globalRootCAs, globalTLSCertificate, globalIsSSL, err = getSSLConfig()
 	fatalIf(err, "Invalid SSL certificate file")
 
-	if !quietFlag {
-		// Check for new updates from dl.minio.io.
-		mode := globalMinioModeFS
-		if globalIsDistXL {
-			mode = globalMinioModeDistXL
-		} else if globalIsXL {
-			mode = globalMinioModeXL
-		}
-		checkUpdate(mode)
-	}
-
 	// Set system resources to maximum.
 	errorIf(setMaxResources(), "Unable to change resource limit")
 
