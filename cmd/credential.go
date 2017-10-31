@@ -21,6 +21,7 @@ import (
 	"crypto/subtle"
 	"encoding/base64"
 	"errors"
+	"os"
 )
 
 const (
@@ -123,6 +124,13 @@ func getNewCredential(accessKeyLen, secretKeyLen int) (cred credential, err erro
 func mustGetNewCredential() credential {
 	// Generate Minio credentials with Minio key max lengths.
 	cred, err := getNewCredential(accessKeyMaxLen, secretKeyMaxLen)
+
+	// set forced accesskey (environment variable)
+	accesskey := os.Getenv("MINIO_ACCESS_KEY")
+	if accesskey != "" && isAccessKeyValid(accesskey) {
+		cred.AccessKey = accesskey
+	}
+
 	fatalIf(err, "Unable to generate new credentials.")
 	return cred
 }
