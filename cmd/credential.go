@@ -22,6 +22,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"os"
+	"regexp"
 )
 
 const (
@@ -49,13 +50,14 @@ const (
 
 // Common errors generated for access and secret key validation.
 var (
+	regexAccessKey            = regexp.MustCompile("^[a-zA-Z0-9_]+$")
 	errInvalidAccessKeyLength = errors.New("Invalid access key, access key should be minimum 5 characters in length")
 	errInvalidSecretKeyLength = errors.New("Invalid secret key, secret key should be minimum 8 characters in length")
 )
 
 // isAccessKeyValid - validate access key for right length.
 func isAccessKeyValid(accessKey string) bool {
-	return len(accessKey) >= accessKeyMinLen
+	return len(accessKey) >= accessKeyMinLen && regexAccessKey.MatchString(accessKey)
 }
 
 // isSecretKeyValid - validate secret key for right length.
