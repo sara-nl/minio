@@ -1090,6 +1090,8 @@ func (api objectAPIHandlers) DeleteObjectHandler(w http.ResponseWriter, r *http.
 		return
 	}
 
+	logMsg("DEL %v/%v from %v", bucket, object, r.RemoteAddr)
+
 	// http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectDELETE.html
 	// Ignore delete object errors while replying to client, since we are
 	// suppposed to reply only 204. Additionally log the error for
