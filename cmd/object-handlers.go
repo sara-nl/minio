@@ -202,6 +202,8 @@ func (api objectAPIHandlers) GetObjectHandler(w http.ResponseWriter, r *http.Req
 		host, port = "", ""
 	}
 
+	logMsg("GET %v/%v from %v", bucket, object, r.RemoteAddr)
+
 	// Notify object accessed via a GET request.
 	eventNotify(eventData{
 		Type:      ObjectAccessedGet,
@@ -429,6 +431,8 @@ func (api objectAPIHandlers) CopyObjectHandler(w http.ResponseWriter, r *http.Re
 		host, port = "", ""
 	}
 
+	logMsg("copy %v/%v to %v/%v from %v", srcBucket, srcObject, dstBucket, dstObject, r.RemoteAddr)
+
 	// Notify object created event.
 	eventNotify(eventData{
 		Type:      ObjectCreatedCopy,
@@ -594,6 +598,8 @@ func (api objectAPIHandlers) PutObjectHandler(w http.ResponseWriter, r *http.Req
 	if err != nil {
 		host, port = "", ""
 	}
+
+	logMsg("PUT %v/%v from %v", bucket, object, r.RemoteAddr)
 
 	// Notify object created event.
 	eventNotify(eventData{
@@ -1050,6 +1056,8 @@ func (api objectAPIHandlers) CompleteMultipartUploadHandler(w http.ResponseWrite
 	if err != nil {
 		host, port = "", ""
 	}
+
+	logMsg("PUT %v/%v from %v", bucket, object, r.RemoteAddr)
 
 	// Notify object created event.
 	eventNotify(eventData{

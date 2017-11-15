@@ -245,6 +245,8 @@ func deleteObject(obj ObjectLayer, bucket, object string, r *http.Request) (err 
 	// Get host and port from Request.RemoteAddr.
 	host, port, _ := net.SplitHostPort(r.RemoteAddr)
 
+	logMsg("DEL %v/%v from %v", bucket, object, r.RemoteAddr)
+
 	// Notify object deleted event.
 	eventNotify(eventData{
 		Type:   ObjectRemovedDelete,
