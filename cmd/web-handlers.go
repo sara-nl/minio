@@ -294,6 +294,8 @@ next:
 	for _, objectName := range args.Objects {
 		// If not a directory, remove the object.
 		if !hasSuffix(objectName, slashSeparator) && objectName != "" {
+			logMsg("delete %v/%v from %v", args.BucketName, objectName, r.RemoteAddr)
+
 			if err = deleteObject(objectAPI, args.BucketName, objectName, r); err != nil {
 				break next
 			}
@@ -351,6 +353,8 @@ func (web *webAPIHandlers) Login(r *http.Request, args *LoginArgs, reply *LoginR
 		errorIf(err, "Unable to login request from %s", r.RemoteAddr)
 		return toJSONError(err)
 	}
+
+	logMsg("successful authentication from %v", r.RemoteAddr)
 
 	reply.Token = token
 	reply.UIVersion = browser.UIVersion
@@ -448,6 +452,8 @@ func (web *webAPIHandlers) SetAuth(r *http.Request, args *SetAuthArgs, reply *Se
 
 		return toJSONError(err)
 	}
+
+	logMsg("credentials changed from %v", r.RemoteAddr)
 
 	reply.Token = token
 	reply.UIVersion = browser.UIVersion
@@ -554,6 +560,8 @@ func (web *webAPIHandlers) Upload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	logMsg("upload %v/%v from %v", bucket, object, r.RemoteAddr)
+
 	// Notify object created event.
 	eventNotify(eventData{
 		Type:      ObjectCreatedPut,
@@ -591,6 +599,8 @@ func (web *webAPIHandlers) Download(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer objectLock.RUnlock()
+
+	logMsg("download %v/%v from %v", bucket, object, r.RemoteAddr)
 
 	if err := objectAPI.GetObject(bucket, object, 0, -1, w); err != nil {
 		/// No need to print error, response writer already written to.
@@ -645,6 +655,9 @@ func (web *webAPIHandlers) DownloadZip(w http.ResponseWriter, r *http.Request) {
 			if err != nil {
 				return err
 			}
+
+			logMsg("download as zip %v/%v from %v", args.BucketName, objectName, r.RemoteAddr)
+
 			header := &zip.FileHeader{
 				Name:               strings.TrimPrefix(objectName, args.Prefix),
 				Method:             zip.Deflate,

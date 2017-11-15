@@ -184,6 +184,10 @@ func getSource() string {
 	return fmt.Sprintf("[%s:%d:%s()]", filename, lineNum, funcName)
 }
 
+func logMsg(msg string, v ...interface{}) {
+	log.logger.Printf(msg, v...)
+}
+
 func logIf(level logrus.Level, source string, err error, msg string, data ...interface{}) {
 	isErrIgnored := func(err error) (ok bool) {
 		err = errorCause(err)
