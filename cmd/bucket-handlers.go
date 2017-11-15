@@ -308,6 +308,8 @@ func (api objectAPIHandlers) DeleteMultipleObjectsHandler(w http.ResponseWriter,
 			} else {
 				defer objectLock.Unlock()
 
+				logMsg("DEL %v/%v from %v", bucket, obj.ObjectName, r.RemoteAddr)
+
 				dErr := objectAPI.DeleteObject(bucket, obj.ObjectName)
 				if dErr != nil {
 					dErrs[i] = dErr
