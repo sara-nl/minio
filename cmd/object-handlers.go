@@ -275,6 +275,8 @@ func (api objectAPIHandlers) HeadObjectHandler(w http.ResponseWriter, r *http.Re
 		host, port = "", ""
 	}
 
+	logMsg("HEAD %v/%v from %v", bucket, object, r.RemoteAddr)
+
 	// Notify object accessed via a HEAD request.
 	eventNotify(eventData{
 		Type:      ObjectAccessedHead,
@@ -431,7 +433,7 @@ func (api objectAPIHandlers) CopyObjectHandler(w http.ResponseWriter, r *http.Re
 		host, port = "", ""
 	}
 
-	logMsg("copy %v/%v to %v/%v from %v", srcBucket, srcObject, dstBucket, dstObject, r.RemoteAddr)
+	logMsg("COPY %v/%v to %v/%v from %v", srcBucket, srcObject, dstBucket, dstObject, r.RemoteAddr)
 
 	// Notify object created event.
 	eventNotify(eventData{
@@ -650,6 +652,8 @@ func (api objectAPIHandlers) NewMultipartUploadHandler(w http.ResponseWriter, r 
 
 	response := generateInitiateMultipartUploadResponse(bucket, object, uploadID)
 	encodedSuccessResponse := encodeResponse(response)
+
+	logMsg("MPUT %v/%v from %v", bucket, object, r.RemoteAddr)
 
 	// Write success response.
 	writeSuccessResponseXML(w, encodedSuccessResponse)
@@ -959,6 +963,8 @@ func (api objectAPIHandlers) ListObjectPartsHandler(w http.ResponseWriter, r *ht
 	response := generateListPartsResponse(listPartsInfo)
 	encodedSuccessResponse := encodeResponse(response)
 
+	logMsg("LIST %v/%v from %v", bucket, object, r.RemoteAddr)
+
 	// Write success response.
 	writeSuccessResponseXML(w, encodedSuccessResponse)
 }
@@ -1057,7 +1063,7 @@ func (api objectAPIHandlers) CompleteMultipartUploadHandler(w http.ResponseWrite
 		host, port = "", ""
 	}
 
-	logMsg("PUT %v/%v from %v", bucket, object, r.RemoteAddr)
+	logMsg("completed MPUT %v/%v from %v", bucket, object, r.RemoteAddr)
 
 	// Notify object created event.
 	eventNotify(eventData{
